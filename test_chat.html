@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Teste Chat - Marido Chat</title>
+  <style>
+    body{font-family: Arial, Helvetica, sans-serif; padding:20px}
+    #messages{border:1px solid #ddd; padding:12px; height:300px; overflow:auto}
+    .msg{padding:8px; margin-bottom:6px; border-radius:6px}
+    .me{background:#e6ffe6}
+    .other{background:#fff}
+  </style>
+</head>
+<body>
+  <h3>Teste Chat</h3>
+  <div>
+    <label>chatId: <input id="chatId" value="default-chat" /></label>
+    <button id="start">Start</button>
+  </div>
+  <div id="messages"></div>
+  <form id="form" style="margin-top:8px">
+    <input id="text" style="width:70%" placeholder="escreva" />
+    <button>Enviar</button>
+  </form>
+
+  <script type="module">
+    import './firebase.js';
+    import { getAuth, signInAnonymously } from 'firebase/auth';
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+
+    const auth = getAuth();
+    const db = getFirestore();
+
+    const messagesEl = document.getElementById('messages');
+    const form = document.getElementById('form');
+    const textInput = document.getElementById('text');
+    const startBtn = document.getElementById('start');
+    const chatIdInput = document.getElementById('chatId');
+    let unsub;
+
+    startBtn.addEventListener('click', async () => {
+      if (unsub) unsub();
+      try {
+        if (!auth.currentUser) await signInAnonymously(auth);
+      } catch (err) { console.warn('anon fail', err); }
+
+      const chatId = chatIdInput.value || 'default-chat';
+      const messagesRef = collection(db, 'messages', chatId);
+      const q = query(messagesRef, orderBy('createdAt'));
+      unsub = onSnapshot(q, (snap) => {
+        messagesEl.innerHTML = '';
+        snap.docs.forEach(doc => {
+          const d = doc.data();
+          const div = document.createElement('div');
+          div.className = 'msg ' + ((d.senderId && auth.currentUser && d.senderId === auth.currentUser.uid) ? 'me' : 'other');
+          div.textContent = (d.text || '') + (d.createdAt && d.createdAt.toDate ? ' \n' + d.createdAt.toDate().toLocaleString() : '');
+          messagesEl.appendChild(div);
+        });
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const chatId = chatIdInput.value || 'default-chat';
+      if (!textInput.value.trim()) return;
+      try {
+        await addDoc(collection(db, 'messages', chatId), {
+          text: textInput.value.trim(),
+          senderId: auth.currentUser?.uid || null,
+          createdAt: serverTimestamp()
+        });
+        textInput.value = '';
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
