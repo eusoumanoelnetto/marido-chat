@@ -66,10 +66,24 @@ service cloud.firestore {
 
 A regra acima exige autenticação para leitura e escrita. Para permitir usuários anônimos, não altere o método de autenticação (eles também geram `request.auth`). Ajuste conforme suas necessidades.
 
-## 6) Notificações Push (opcional)
+## 6) VAPID key e FCM Web
 
-- Use Firebase Cloud Messaging (FCM).
-- Para enviar notificações quando uma mensagem chegar, crie uma Cloud Function (Node.js) que observe a coleção `messages/{chatId}/{messageId}` e dispare `admin.messaging().sendToTopic()` ou `sendToDevice()`.
+Para usar notificações no navegador você precisa da `VAPID key` (chave pública) do Firebase Messaging.
+
+- No console Firebase > Cloud Messaging > Web credentials copie a `VAPID key`.
+- No cliente, passe a `vapidKey` e a `functionsApiUrl` ao componente `Chat` ou ao serviço `getFCMToken`.
+
+Exemplo de uso do componente React:
+
+```jsx
+// vinda do seu .env ou config
+const vapidKey = 'SUA_VAPID_KEY';
+const functionsApiUrl = 'https://<REGION>-<PROJECT>.cloudfunctions.net/api';
+
+<Chat chatId={'cliente-123_prestador-456'} vapidKey={vapidKey} functionsApiUrl={functionsApiUrl} />
+```
+
+Quando o componente inicializar, ele tentará obter o token e chamar `/subscribe` no seu Functions API para inscrever o token ao tópico `chat-{chatId}`.
 
 ## 7) Deploy e observações
 
